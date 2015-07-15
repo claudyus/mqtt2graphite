@@ -54,11 +54,12 @@ def flatten(d, parent_key='', sep='_'):
 def is_number(s):
     '''Test whether string contains a number (leading/traling white-space is ok)'''
 
+    s = s.replace(',', '.')
     try:
-        float(s)
-        return True
+        f = float(s)
+        return True , f
     except ValueError:
-        return False
+        return False , None
 
 
 def on_connect(mosq, userdata, rc):
@@ -114,8 +115,9 @@ def on_message(mosq, userdata, msg):
                     st = flatten(j)
 
                     for k in st:
-                        if is_number(st[k]):
-                            lines.append("%s.%s %f %d" % (carbonkey, k, float(st[k]), now))
+                        valid, num = is_number(st[k])
+                        if valid:
+                            lines.append("%s.%s %f %d" % (carbonkey, k, num, now))
                 except:
                     logging.info("Topic %s contains non-JSON payload [%s]" %
                             (msg.topic, msg.payload))
