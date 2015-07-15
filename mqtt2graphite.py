@@ -11,6 +11,7 @@ import time
 import socket
 import json
 import signal
+import collections
 
 MQTT_HOST = os.environ.get('MQTT_HOST', 'localhost')
 CARBON_SERVER = '127.0.0.1'
@@ -34,6 +35,21 @@ def cleanup(signum, frame):
     logging.info("Disconnected from broker; exiting on signal %d", signum)
     sys.exit(signum)
 
+
+def flatten(d, parent_key='', sep='_'):
+    """
+    Recursively flatten a disctionary prepending parent_key
+
+    http://stackoverflow.com/questions/6027558/flatten-nested-python-dictionaries-compressing-keys
+    """
+    items = []
+    for k, v in d.items():
+        new_key = parent_key + sep + k if parent_key else k
+        if isinstance(v, collections.MutableMapping):
+            items.extend(flatten(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
 
 def is_number(s):
     '''Test whether string contains a number (leading/traling white-space is ok)'''
@@ -94,7 +110,9 @@ def on_message(mosq, userdata, msg):
                 '''JSON: try and load the JSON string from payload and use
                    subkeys to pass to Carbon'''
                 try:
-                    st = json.loads(msg.payload)
+                    j = json.loads(msg.payload)
+                    st = flatten(j)
+
                     for k in st:
                         if is_number(st[k]):
                             lines.append("%s.%s %f %d" % (carbonkey, k, float(st[k]), now))
